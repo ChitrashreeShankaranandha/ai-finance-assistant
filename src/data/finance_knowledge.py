@@ -1,6 +1,4 @@
-import os
 
-finance_knowledge_code = '''
 finance_docs = [
 
     # ─────────────────────────────────────────
@@ -686,25 +684,3 @@ finance_docs = [
         """
     },
 ]
-'''
-
-# Save to BOTH Drive and repo
-paths = [
-    "/content/drive/MyDrive/ai_finance_assistant/src/data/finance_knowledge.py",
-    "/content/ai-finance-assistant/src/data/finance_knowledge.py"
-]
-
-for path in paths:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as f:
-        f.write(finance_knowledge_code)
-    print(f"✅ Saved: {path}")
-
-# Quick count
-exec(finance_knowledge_code)
-print(f"\n📚 Total docs: {len(finance_docs)}")
-
-from collections import Counter
-cats = Counter(d["category"] for d in finance_docs)
-for cat, count in sorted(cats.items()):
-    print(f"   {cat:15s}: {count} docs")
