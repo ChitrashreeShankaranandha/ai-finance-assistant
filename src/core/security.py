@@ -212,6 +212,15 @@ def security_check(query: str, user_id: str = "default") -> tuple[bool, str]:
     # 5. Off-topic check
     is_relevant, reason = detect_off_topic(query)
     if not is_relevant:
-        return False, "⚠️ I'm a financial education assistant. Please ask me about investing, markets, taxes, or personal finance."
+        return False, (
+            "🤖 I'm specialized in financial education and can help you with:\n\n"
+            "• 📈 Stock market analysis\n"
+            "• 💼 Portfolio review and advice\n"
+            "• 🎯 Financial goal planning\n"
+            "• 💰 Tax education (IRA, 401k, capital gains)\n"
+            "• 📰 Financial news synthesis\n"
+            "• 📚 General investing concepts\n\n"
+            "Please ask me something related to finance or investing!"
+        )
 
     return True, "approved"

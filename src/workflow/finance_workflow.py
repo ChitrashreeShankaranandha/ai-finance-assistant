@@ -30,13 +30,19 @@ def router_node(state: FinanceState) -> FinanceState:
 You are a routing assistant for an AI Finance Assistant.
 Classify the user query into exactly one of these categories:
 
-- market    → asking about a stock price, P/E ratio, stock analysis, stock data
-- news      → asking about news, headlines, recent events for a stock
+- market    → asking about a SPECIFIC STOCK with a ticker symbol (e.g. AAPL, Tesla, Microsoft)
+- news      → asking about news or headlines for a SPECIFIC STOCK
 - portfolio → asking about their portfolio, holdings, current investments
 - advisor   → asking for portfolio advice, recommendations, diversification tips
 - goal      → asking about financial goals, retirement, savings targets, how much to save
 - tax       → asking about taxes, IRA, 401k, capital gains, tax strategies
-- general   → any other finance question
+- general   → ANY other finance question including commodities (gold, oil), 
+               crypto, general concepts, or anything without a specific stock ticker
+
+Important rules:
+- Only use "market" if the query mentions a specific stock or company
+- Gold, silver, oil, Bitcoin questions go to "general"
+- If unsure, use "general"
 
 User query: "{state['query']}"
 
