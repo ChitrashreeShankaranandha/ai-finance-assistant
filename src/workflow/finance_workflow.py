@@ -9,6 +9,7 @@ from src.agents.news_synthesizer_agent import news_synthesizer_agent
 from src.agents.tax_education_agent import tax_education_agent
 from src.agents.portfolio_agent import analyze_portfolio
 from src.agents.portfolio_advisor_agent import portfolio_advisor_agent
+from src.core.security import security_check, sanitize_input, validate_output
 
 load_dotenv()
 
@@ -193,10 +194,19 @@ def build_finance_graph():
 
 
 # ── Main entry point ──────────────────────────────────────────
-def run_finance_assistant(query: str) -> str:
-    """Single entry point for the entire finance assistant."""
+def run_finance_assistant(query: str, user_id: str = "default") -> str:
+    """Single entry point with full security layer."""
+    
+    # ── Security Gate ─────────────────────────────────────────
+    is_allowed, message = security_check(query, user_id)
+    if not is_allowed:
+        return message
+    
+    # ── Sanitize input ────────────────────────────────────────
+    query = sanitize_input(query)
+    
+    # ── Run the graph ─────────────────────────────────────────
     graph = build_finance_graph()
-
     initial_state: FinanceState = {
         "query":    query,
         "agent":    "",
@@ -204,6 +214,13 @@ def run_finance_assistant(query: str) -> str:
         "ticker":   None,
         "error":    None,
     }
-
     result = graph.invoke(initial_state)
-    return result["response"]
+    response = result["response"]
+    
+    # ── Validate output ───────────────────────────────────────
+    is_safe, reason = validate_output(response)
+    if not is_safe:
+        return "I wasn't able to generate a safe response. Please try rephrasing your question."
+    
+    return response
+
