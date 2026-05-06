@@ -225,37 +225,66 @@ with tab2:
 # ════════════════════════════════════════════════════════════════
 with tab3:
     st.header("📈 Market Analysis")
-    st.markdown("Get real-time stock data and beginner-friendly analysis for any ticker.")
+    st.markdown("Get real-time stock data and beginner-friendly analysis for any stock.")
 
     col1, col2 = st.columns([2, 1])
     with col1:
         ticker_input = st.text_input(
-            "Enter Stock Ticker",
-            placeholder="e.g. AAPL, TSLA, MSFT, GOOGL",
-            max_chars=10
-        ).upper()
+            "Enter Stock Ticker or Company Name",
+            placeholder="e.g. Apple, Tesla, Microsoft, Google",
+            max_chars=50
+        ).strip()
     with col2:
         st.markdown("<br>", unsafe_allow_html=True)
         analyze_btn = st.button("🔍 Analyze", type="primary")
 
+    st.caption("💡 Tip: You can type a company name or ticker symbol")
+
     # Quick ticker buttons
-    st.markdown("**Popular tickers:**")
+    st.markdown("**Popular stocks:**")
     qcol1, qcol2, qcol3, qcol4, qcol5 = st.columns(5)
-    quick_tickers = {"AAPL": qcol1, "MSFT": qcol2, "TSLA": qcol3, "GOOGL": qcol4, "AMZN": qcol5}
-    for ticker, col in quick_tickers.items():
-        if col.button(ticker):
-            ticker_input = ticker
-            analyze_btn  = True
+    if qcol1.button("Apple"):
+        ticker_input = "Apple"
+        analyze_btn  = True
+    if qcol2.button("Microsoft"):
+        ticker_input = "Microsoft"
+        analyze_btn  = True
+    if qcol3.button("Tesla"):
+        ticker_input = "Tesla"
+        analyze_btn  = True
+    if qcol4.button("Google"):
+        ticker_input = "Google"
+        analyze_btn  = True
+    if qcol5.button("Amazon"):
+        ticker_input = "Amazon"
+        analyze_btn  = True
 
     if analyze_btn and ticker_input:
-        with st.spinner(f"Fetching live data for {ticker_input}..."):
+        # ── Resolve company name to ticker ────────────────────
+        with st.spinner("Looking up stock..."):
+            try:
+                import yfinance as yf
+                search_results = yf.Search(ticker_input)
+                quotes = search_results.quotes
+                if quotes:
+                    resolved_ticker = quotes[0]["symbol"]
+                    company_name    = quotes[0].get("longname", resolved_ticker)
+                    st.info(f"🔍 Found: **{company_name}** ({resolved_ticker})")
+                else:
+                    st.error(f"Could not find a stock for '{ticker_input}'. Please try a different name.")
+                    st.stop()
+            except Exception as e:
+                st.error(f"Lookup failed: {str(e)}")
+                st.stop()
+
+        with st.spinner(f"Fetching live data for {resolved_ticker}..."):
             try:
                 from src.agents.market_analysis_agent import get_stock_snapshot, market_analysis_agent
 
-                snapshot = get_stock_snapshot(ticker_input)
+                snapshot = get_stock_snapshot(resolved_ticker)
 
                 if "error" not in snapshot:
-                    # ── Metrics ──────────────────────────────
+                    # ── Metrics ───────────────────────────────
                     col1, col2, col3, col4 = st.columns(4)
                     col1.metric("💵 Price",     f"${snapshot['current_price']}",
                                delta=f"{snapshot['change_pct']}%")
@@ -269,12 +298,11 @@ with tab3:
                         low  = float(snapshot['52w_low'])
                         high = float(snapshot['52w_high'])
                         curr = float(snapshot['current_price'])
-                        position = ((curr - low) / (high - low)) * 100
 
                         fig = go.Figure(go.Indicator(
                             mode="gauge+number",
                             value=curr,
-                            title={"text": f"{ticker_input} Price vs 52W Range"},
+                            title={"text": f"{resolved_ticker} Price vs 52W Range"},
                             gauge={
                                 "axis": {"range": [low, high]},
                                 "bar":  {"color": "darkblue"},
@@ -291,7 +319,7 @@ with tab3:
 
                     # ── AI Analysis ───────────────────────────
                     st.subheader("🤖 AI Analysis")
-                    analysis = market_analysis_agent(ticker_input)
+                    analysis = market_analysis_agent(resolved_ticker)
                     st.markdown(analysis)
 
                 else:
