@@ -349,13 +349,30 @@ with tab4:
                                                max_value=100_000, value=500, step=100)
 
     with col2:
-        st.subheader("⚙️ Investment Settings")
-        years = st.slider("Time Horizon (Years)", min_value=1, max_value=50, value=30)
-        annual_return = st.slider("Expected Annual Return (%)", min_value=1.0,
-                                  max_value=15.0, value=7.0, step=0.5)
-        risk_profile = st.selectbox("Risk Profile",
-                                    ["conservative", "moderate", "aggressive"],
-                                    index=1)
+            st.subheader("⚙️ Investment Settings")
+            years = st.slider("Time Horizon (Years)", min_value=1, max_value=50, value=30)
+            
+            risk_profile = st.selectbox("Risk Profile",
+                                        ["conservative", "moderate", "aggressive"],
+                                        index=1)
+            
+            # Auto-set return based on risk profile
+            risk_return_map = {
+                "conservative": 4.5,
+                "moderate":     7.0,
+                "aggressive":   10.0,
+            }
+            default_return = risk_return_map[risk_profile]
+            
+            annual_return = st.slider(
+                "Expected Annual Return (%)",
+                min_value=1.0,
+                max_value=15.0,
+                value=default_return,  # ← changes with risk profile
+                step=0.5
+            )
+            
+            st.caption(f"💡 {risk_profile.capitalize()} investors typically expect {default_return}% annual return")
 
     if st.button("🚀 Calculate My Plan", type="primary"):
         with st.spinner("Calculating your financial plan..."):
