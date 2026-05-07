@@ -148,76 +148,163 @@ with tab1:
 # TAB 2: PORTFOLIO
 # ════════════════════════════════════════════════════════════════
 with tab2:
-    st.header("📊 Portfolio Analysis")
-    st.markdown("View and analyze your simulated demo portfolio with live market prices.")
+    st.header("📊 Portfolio Analysis & Trading")
 
-    if st.button("🔄 Analyze Portfolio", type="primary"):
-        with st.spinner("Fetching live prices and analyzing portfolio..."):
+    # ── Two column layout: Analysis | Trading ─────────────────
+    left_col, right_col = st.columns([3, 2])
+
+    with right_col:
+        st.subheader("💹 Simulated Trading")
+        st.caption("Practice buying and selling using your demo cash balance.")
+
+        trade_stock = st.text_input(
+            "Stock to Buy/Sell",
+            placeholder="e.g. Apple, Tesla, AAPL",
+            key="trade_stock"
+        ).strip()
+
+        trade_shares = st.number_input(
+            "Number of Shares",
+            min_value=0.1,
+            max_value=10000.0,
+            value=1.0,
+            step=0.1,
+            key="trade_shares"
+        )
+
+        # Live price preview
+        if trade_stock:
             try:
-                from src.agents.portfolio_agent import analyze_portfolio
-                df, analysis = analyze_portfolio()
+                import yfinance as yf
+                search = yf.Search(trade_stock)
+                if search.quotes:
+                    preview_ticker  = search.quotes[0]["symbol"]
+                    preview_company = search.quotes[0].get("longname", preview_ticker)
+                    from src.utils.market_data import get_current_price
+                    preview_price   = get_current_price(preview_ticker)
+                    estimated_cost  = preview_price * trade_shares
+                    st.info(f"🔍 **{preview_company}** ({preview_ticker})")
+                    col_a, col_b = st.columns(2)
+                    col_a.metric("Live Price",     f"${preview_price:.2f}")
+                    col_b.metric("Estimated Cost", f"${estimated_cost:,.2f}")
+            except Exception:
+                pass
 
-                # ── Metrics Row ──────────────────────────────
-                total_value    = df["current_value"].sum()
-                total_cost     = (df["shares"] * df["avg_buy_price"]).sum()
-                total_gain     = df["gain_loss"].sum()
-                total_gain_pct = ((total_value - total_cost) / total_cost) * 100
+        buy_col, sell_col = st.columns(2)
+        buy_btn  = buy_col.button("🟢 Buy",  type="primary", use_container_width=True)
+        sell_btn = sell_col.button("🔴 Sell", use_container_width=True)
 
-                col1, col2, col3, col4 = st.columns(4)
-                col1.metric("💼 Total Value",    f"${total_value:,.2f}")
-                col2.metric("💵 Total Cost",     f"${total_cost:,.2f}")
-                col3.metric("📈 Total Gain/Loss", f"${total_gain:,.2f}",
-                           delta=f"{total_gain_pct:.1f}%")
-                col4.metric("🏢 Holdings",       f"{len(df)} stocks")
+        if buy_btn or sell_btn:
+            if not trade_stock:
+                st.warning("Please enter a stock name or ticker.")
+            else:
+                try:
+                    import yfinance as yf
+                    search = yf.Search(trade_stock)
+                    if search.quotes:
+                        resolved = search.quotes[0]["symbol"]
+                        company  = search.quotes[0].get("longname", resolved)
+                    else:
+                        st.error(f"Could not find stock: {trade_stock}")
+                        st.stop()
+                except Exception as e:
+                    st.error(f"Lookup failed: {str(e)}")
+                    st.stop()
 
-                st.markdown("---")
+                from src.agents.trading_agent import simulated_buy, simulated_sell
 
-                # ── Two column layout ────────────────────────
-                left, right = st.columns(2)
+                with st.spinner(f"Processing trade for {company} ({resolved})..."):
+                    if buy_btn:
+                        result = simulated_buy(resolved, trade_shares)
+                    else:
+                        result = simulated_sell(resolved, trade_shares)
 
-                with left:
-                    st.subheader("📋 Holdings Table")
-                    display_df = df[["ticker", "shares", "avg_buy_price",
-                                    "current_price", "current_value", "gain_loss",
-                                    "allocation_percent"]].copy()
-                    display_df.columns = ["Ticker", "Shares", "Avg Buy",
-                                         "Current", "Value", "Gain/Loss", "Allocation %"]
-                    display_df = display_df.round(2)
-                    st.dataframe(display_df, use_container_width=True)
+                if "completed" in result.lower():
+                    st.success(f"✅ {result}")
+                    st.info("🔄 Click 'Analyze Portfolio' to see updated holdings.")
+                else:
+                    st.error(f"❌ {result}")
 
-                with right:
-                    st.subheader("🥧 Portfolio Allocation")
-                    fig = px.pie(
-                        df, values="current_value", names="ticker",
-                        color_discrete_sequence=px.colors.qualitative.Set3
+    with left_col:
+        st.subheader("📊 Portfolio Analysis")
+        st.caption("View your holdings with live market prices and AI-powered insights.")
+        analyze_btn = st.button("🔄 Analyze Portfolio", type="primary")
+
+        if analyze_btn:
+            with st.spinner("Fetching live prices and analyzing portfolio..."):
+                try:
+                    from src.agents.portfolio_agent import analyze_portfolio
+                    df, analysis = analyze_portfolio()
+
+                    # ── Cash balance ──────────────────────────
+                    cash_row = df[df["ticker"] == "CASH"]
+                    if not cash_row.empty:
+                        cash_balance = float(cash_row.iloc[0]["shares"])
+                        st.info(f"💵 Available Cash: **${cash_balance:,.2f}**")
+
+                    # ── Metrics ───────────────────────────────
+                    total_value    = df["current_value"].sum()
+                    total_cost     = (df["shares"] * df["avg_buy_price"]).sum()
+                    total_gain     = df["gain_loss"].sum()
+                    total_gain_pct = ((total_value - total_cost) / total_cost) * 100
+
+                    col1, col2, col3, col4 = st.columns(4)
+                    col1.metric("💼 Total Value",     f"${total_value:,.2f}")
+                    col2.metric("💵 Total Cost",      f"${total_cost:,.2f}")
+                    col3.metric("📈 Total Gain/Loss", f"${total_gain:,.2f}",
+                               delta=f"{total_gain_pct:.1f}%")
+                    col4.metric("🏢 Holdings",        f"{len(df)} stocks")
+
+                    st.markdown("---")
+
+                    # ── Holdings Table + Pie Chart ────────────
+                    tbl_col, pie_col = st.columns(2)
+
+                    with tbl_col:
+                        st.subheader("📋 Holdings")
+                        display_df = df[["ticker", "shares", "avg_buy_price",
+                                        "current_price", "current_value",
+                                        "gain_loss", "allocation_percent"]].copy()
+                        display_df.columns = ["Ticker", "Shares", "Avg Buy",
+                                             "Current", "Value",
+                                             "Gain/Loss", "Allocation %"]
+                        display_df = display_df.round(2)
+                        st.dataframe(display_df, use_container_width=True)
+
+                    with pie_col:
+                        st.subheader("🥧 Allocation")
+                        fig = px.pie(
+                            df, values="current_value", names="ticker",
+                            color_discrete_sequence=px.colors.qualitative.Set3
+                        )
+                        fig.update_traces(textposition='inside',
+                                         textinfo='percent+label')
+                        st.plotly_chart(fig, use_container_width=True)
+
+                    # ── Gain/Loss Bar Chart ───────────────────
+                    st.subheader("📊 Gain/Loss by Stock")
+                    colors = ["green" if x >= 0 else "red" for x in df["gain_loss"]]
+                    fig2 = go.Figure(go.Bar(
+                        x=df["ticker"], y=df["gain_loss"],
+                        marker_color=colors,
+                        text=[f"${x:,.2f}" for x in df["gain_loss"]],
+                        textposition="outside"
+                    ))
+                    fig2.update_layout(
+                        xaxis_title="Stock",
+                        yaxis_title="Gain/Loss ($)",
+                        showlegend=False
                     )
-                    fig.update_traces(textposition='inside', textinfo='percent+label')
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig2, use_container_width=True)
 
-                # ── Gain/Loss Bar Chart ──────────────────────
-                st.subheader("📊 Gain/Loss by Stock")
-                colors = ["green" if x >= 0 else "red" for x in df["gain_loss"]]
-                fig2 = go.Figure(go.Bar(
-                    x=df["ticker"], y=df["gain_loss"],
-                    marker_color=colors,
-                    text=[f"${x:,.2f}" for x in df["gain_loss"]],
-                    textposition="outside"
-                ))
-                fig2.update_layout(
-                    xaxis_title="Stock", yaxis_title="Gain/Loss ($)",
-                    showlegend=False
-                )
-                st.plotly_chart(fig2, use_container_width=True)
+                    # ── AI Analysis ───────────────────────────
+                    st.subheader("🤖 AI Portfolio Analysis")
+                    st.markdown(analysis)
 
-                # ── AI Analysis ──────────────────────────────
-                st.subheader("🤖 AI Portfolio Analysis")
-                st.markdown(analysis)
-
-            except Exception as e:
-                st.error(f"Error analyzing portfolio: {str(e)}")
-
-    else:
-        st.info("👆 Click 'Analyze Portfolio' to load your portfolio with live market prices.")
+                except Exception as e:
+                    st.error(f"Error analyzing portfolio: {str(e)}")
+        else:
+            st.info("👆 Click 'Analyze Portfolio' to load your holdings with live prices.")
 
 
 # ════════════════════════════════════════════════════════════════
