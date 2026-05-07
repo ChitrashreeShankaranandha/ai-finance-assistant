@@ -2,7 +2,7 @@ import pandas as pd
 
 from src.utils.market_data import get_current_price
 
-PORTFOLIO_PATH = "/content/drive/MyDrive/ai_finance_assistant/src/data/demo_portfolio.csv"
+PORTFOLIO_PATH = "src/data/demo_portfolio.csv"
 
 
 def load_portfolio():
