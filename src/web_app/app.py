@@ -156,6 +156,17 @@ with tab2:
     with right_col:
         st.subheader("💹 Simulated Trading")
         st.caption("Practice buying and selling using your demo cash balance.")
+        
+        # Always show live cash balance
+        try:
+            import pandas as pd
+            df_cash = pd.read_csv("src/data/demo_portfolio.csv")
+            cash_row = df_cash[df_cash["ticker"] == "CASH"]
+            if not cash_row.empty:
+                cash_balance = float(cash_row.iloc[0]["shares"])
+                st.metric("💵 Available Cash", f"${cash_balance:,.2f}")
+        except Exception:
+            pass
 
         trade_stock = st.text_input(
             "Stock to Buy/Sell",
