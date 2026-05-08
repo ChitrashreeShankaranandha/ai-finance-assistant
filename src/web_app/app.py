@@ -149,6 +149,110 @@ with tab1:
 # ════════════════════════════════════════════════════════════════
 with tab2:
     st.header("📊 Portfolio Analysis & Trading")
+    st.markdown("View and analyze your portfolio with live market prices. Use the trading panel to practice buying and selling stocks.")
+
+    # ── Portfolio Source Selection ────────────────────────────
+    st.subheader("📁 Your Portfolio")
+    st.caption("Add your stocks directly in the table below. Click any cell to edit, or add new rows.")
+
+    col_reset, _ = st.columns([1, 4])
+    with col_reset:
+        if st.button("🔄 Reset to Demo Portfolio"):
+            import shutil
+            shutil.copy("src/data/demo_portfolio_backup.csv", "src/data/demo_portfolio.csv")
+            st.session_state.active_portfolio = "src/data/demo_portfolio.csv"
+            st.success("✅ Demo portfolio restored!")
+            st.rerun()
+
+    if "active_portfolio" not in st.session_state:
+        st.session_state.active_portfolio = "src/data/demo_portfolio.csv"
+
+    PORTFOLIO_PATH = st.session_state.active_portfolio
+
+    # Load current portfolio as starting point
+    try:
+        default_df = pd.read_csv(PORTFOLIO_PATH)[["ticker", "shares", "avg_buy_price"]]
+        default_df = default_df[default_df["ticker"] != "CASH"]
+    except Exception:
+        default_df = pd.DataFrame([
+            {"ticker": "AAPL", "shares": 10.0, "avg_buy_price": 150.0},
+            {"ticker": "MSFT", "shares": 5.0,  "avg_buy_price": 280.0},
+        ])
+
+    edited_df = st.data_editor(
+        default_df,
+        num_rows="dynamic",
+        use_container_width=True,
+        column_config={
+            "ticker": st.column_config.TextColumn(
+                "Ticker / Company",
+                help="Stock ticker symbol (e.g. AAPL) or company name (e.g. Apple)",
+                required=True
+            ),
+            "shares": st.column_config.NumberColumn(
+                "Shares",
+                help="Number of shares you own",
+                min_value=0.01,
+                required=True
+            ),
+            "avg_buy_price": st.column_config.NumberColumn(
+                "Avg Buy Price ($)",
+                help="Average price you paid per share",
+                min_value=0.0,
+                required=True
+            ),
+        }
+    )
+
+    if st.button("💾 Save Portfolio", type="primary"):
+        try:
+            import yfinance as yf
+            resolved_rows = []
+            errors        = []
+
+            for _, row in edited_df.iterrows():
+                if str(row["ticker"]).strip() == "":
+                    continue
+                input_val = str(row["ticker"]).strip()
+                test      = yf.Ticker(input_val.upper())
+                hist      = test.history(period="1d")
+                if not hist.empty:
+                    resolved_ticker = input_val.upper()
+                else:
+                    search = yf.Search(input_val)
+                    if search.quotes:
+                        resolved_ticker = search.quotes[0]["symbol"]
+                    else:
+                        resolved_ticker = input_val.upper()
+                        errors.append(f"Could not resolve '{input_val}' — using as-is")
+
+                resolved_rows.append({
+                    "ticker":        resolved_ticker,
+                    "shares":        float(row["shares"]),
+                    "avg_buy_price": float(row["avg_buy_price"])
+                })
+
+            if errors:
+                for e in errors:
+                    st.warning(f"⚠️ {e}")
+
+            # Add CASH row
+            resolved_rows.append({
+                "ticker":        "CASH",
+                "shares":        10000.0,
+                "avg_buy_price": 1.0
+            })
+
+            final_df = pd.DataFrame(resolved_rows)
+            final_df.to_csv(PORTFOLIO_PATH, index=False)
+            st.session_state.active_portfolio = PORTFOLIO_PATH
+            st.success("✅ Portfolio saved! Click 'Analyze Portfolio' to see results.")
+
+        except Exception as e:
+            st.error(f"Error saving portfolio: {str(e)}")
+
+    st.markdown("---")
+
 
     # ── Two column layout: Analysis | Trading ─────────────────
     left_col, right_col = st.columns([3, 2])
@@ -156,11 +260,11 @@ with tab2:
     with right_col:
         st.subheader("💹 Simulated Trading")
         st.caption("Practice buying and selling using your demo cash balance.")
-        
+
         # Always show live cash balance
         try:
             import pandas as pd
-            df_cash = pd.read_csv("src/data/demo_portfolio.csv")
+            df_cash  = pd.read_csv(st.session_state.get("active_portfolio", "src/data/demo_portfolio.csv"))
             cash_row = df_cash[df_cash["ticker"] == "CASH"]
             if not cash_row.empty:
                 cash_balance = float(cash_row.iloc[0]["shares"])
@@ -226,9 +330,9 @@ with tab2:
 
                 with st.spinner(f"Processing trade for {company} ({resolved})..."):
                     if buy_btn:
-                        result = simulated_buy(resolved, trade_shares)
+                        result = simulated_buy(resolved, trade_shares, PORTFOLIO_PATH)
                     else:
-                        result = simulated_sell(resolved, trade_shares)
+                        result = simulated_sell(resolved, trade_shares, PORTFOLIO_PATH)
 
                 if "completed" in result.lower():
                     st.success(f"✅ {result}")
@@ -245,7 +349,7 @@ with tab2:
             with st.spinner("Fetching live prices and analyzing portfolio..."):
                 try:
                     from src.agents.portfolio_agent import analyze_portfolio
-                    df, analysis = analyze_portfolio()
+                    df, analysis = analyze_portfolio(st.session_state.active_portfolio)
 
                     # ── Cash balance ──────────────────────────
                     cash_row = df[df["ticker"] == "CASH"]
@@ -447,30 +551,30 @@ with tab4:
                                                max_value=100_000, value=500, step=100)
 
     with col2:
-            st.subheader("⚙️ Investment Settings")
-            years = st.slider("Time Horizon (Years)", min_value=1, max_value=50, value=30)
+        st.subheader("⚙️ Investment Settings")
+        years = st.slider("Time Horizon (Years)", min_value=1, max_value=50, value=30)
             
-            risk_profile = st.selectbox("Risk Profile",
-                                        ["conservative", "moderate", "aggressive"],
-                                        index=1)
+        risk_profile = st.selectbox("Risk Profile",
+                                    ["conservative", "moderate", "aggressive"],
+                                    index=1)
             
-            # Auto-set return based on risk profile
-            risk_return_map = {
-                "conservative": 4.5,
-                "moderate":     7.0,
-                "aggressive":   10.0,
-            }
-            default_return = risk_return_map[risk_profile]
+        # Auto-set return based on risk profile
+        risk_return_map = {
+            "conservative": 4.5,
+            "moderate":     7.0,
+            "aggressive":   10.0,
+        }
+        default_return = risk_return_map[risk_profile]
             
-            annual_return = st.slider(
-                "Expected Annual Return (%)",
-                min_value=1.0,
-                max_value=15.0,
-                value=default_return,  # ← changes with risk profile
-                step=0.5
-            )
+        annual_return = st.slider(
+            "Expected Annual Return (%)",
+            min_value=1.0,
+            max_value=15.0,
+            value=default_return,  # ← changes with risk profile
+            step=0.5
+        )
             
-            st.caption(f"💡 {risk_profile.capitalize()} investors typically expect {default_return}% annual return")
+        st.caption(f"💡 {risk_profile.capitalize()} investors typically expect {default_return}% annual return")
 
     if st.button("🚀 Calculate My Plan", type="primary"):
         with st.spinner("Calculating your financial plan..."):
