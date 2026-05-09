@@ -61,6 +61,7 @@ User Query
 
 ## 📁 Project Structure
 
+```
 ai-finance-assistant/
 ├── src/
 │   ├── agents/
@@ -99,6 +100,7 @@ ai-finance-assistant/
 ├── config.yaml
 ├── requirements.txt
 └── README.md
+```
 
 ---
 
