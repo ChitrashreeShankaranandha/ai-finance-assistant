@@ -5,7 +5,7 @@ colorFrom: blue
 colorTo: green
 sdk: docker
 app_port: 8501
-short_description: AI-powered multi-agent finance assistant for beginner investors
+short_description: Multi-agent AI finance assistant
 ---
 
 > Democratizing Financial Literacy Through Intelligent Conversational AI
