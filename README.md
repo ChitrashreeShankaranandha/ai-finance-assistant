@@ -236,6 +236,13 @@ This system is for **educational purposes only** and does not constitute financi
 
 ---
 
+## 🌐 Live Demo
+
+**Deployed on Hugging Face Spaces:**  
+👉 https://huggingface.co/spaces/ChitrashreeShankaranandha/ai-finance-assistant
+
+---
+
 ## 🔮 Future Directions
 
 - **User Authentication** — private portfolios per user with Streamlit Authenticator
