@@ -1,4 +1,12 @@
-# 💰 AI Finance Assistant
+---
+title: AI Finance Assistant
+emoji: 💰
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 8501
+short_description: AI-powered multi-agent finance assistant for beginner investors
+---
 
 > Democratizing Financial Literacy Through Intelligent Conversational AI
 
