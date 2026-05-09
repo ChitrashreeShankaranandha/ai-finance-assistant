@@ -59,6 +59,7 @@ st.markdown("""
 # ── Header ────────────────────────────────────────────────────
 st.markdown('<div class="main-header">💰 AI Finance Assistant</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Democratizing Financial Literacy Through Intelligent AI</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align: center; color: #888; font-size: 0.75rem; margin-top: -1rem;">© 2026 Chitrashree Shankaranandha. All rights reserved.</div>', unsafe_allow_html=True)
 
 # ── Sidebar ───────────────────────────────────────────────────
 with st.sidebar:
@@ -78,12 +79,6 @@ with st.sidebar:
     Always consult a qualified financial advisor.
     </div>
     """, unsafe_allow_html=True)
-    st.markdown("---")
-    st.markdown("### 👩‍💻 Built by")
-    st.markdown("**Chitrashree Shankaranandha**")
-    st.markdown("[GitHub](https://github.com/ChitrashreeShankaranandha) · [LinkedIn](https://www.linkedin.com/in/chitrashreeshankaranandha/)")
-    st.markdown("---")
-    st.caption("© 2026 Chitrashree Shankaranandha. All rights reserved.")
 
 # ── Tabs ──────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
