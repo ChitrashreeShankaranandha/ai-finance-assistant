@@ -3,6 +3,7 @@ AI Finance Assistant - Streamlit Web Application
 Multi-tab interface for the full finance assistant system.
 """
 
+from datetime import datetime
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -13,15 +14,29 @@ import plotly.graph_objects as go
 import pandas as pd
 from dotenv import load_dotenv, find_dotenv
 from src.core.logger import log_info
+import uuid
 
 load_dotenv(find_dotenv())
 
 # print(f"[INFO] OPENAI_API_KEY loaded: {'OPENAI_API_KEY' in os.environ}")
 # print(f"[INFO] PINECONE_API_KEY loaded: {'PINECONE_API_KEY' in os.environ}")
 if "app_started" not in st.session_state:
-    log_info("app", "App started", 
-             openai_key=str('OPENAI_API_KEY' in os.environ), 
-             pinecone_key=str('PINECONE_API_KEY' in os.environ))
+    # Clear any existing session ID from environment
+    if "CURRENT_SESSION_ID" in os.environ:
+        del os.environ["CURRENT_SESSION_ID"]
+    
+    # Generate new session ID
+    timestamp  = datetime.now().strftime("%H%M%S")
+    unique_id  = str(uuid.uuid4())[:8]
+    session_id = f"session_{timestamp}_{unique_id}"
+    
+    os.environ["CURRENT_SESSION_ID"] = session_id
+    st.session_state.session_id = session_id
+
+    log_info("app", "App started",
+             openai_key=str('OPENAI_API_KEY' in os.environ),
+             pinecone_key=str('PINECONE_API_KEY' in os.environ),
+             session_id=session_id)
     st.session_state.app_started = True
 
 
