@@ -18,8 +18,11 @@ load_dotenv()
 
 # print(f"[INFO] OPENAI_API_KEY loaded: {'OPENAI_API_KEY' in os.environ}")
 # print(f"[INFO] PINECONE_API_KEY loaded: {'PINECONE_API_KEY' in os.environ}")
-log_info("app", "App started", openai_key=str('OPENAI_API_KEY' in os.environ), 
-         pinecone_key=str('PINECONE_API_KEY' in os.environ))
+if "app_started" not in st.session_state:
+    log_info("app", "App started", 
+             openai_key=str('OPENAI_API_KEY' in os.environ), 
+             pinecone_key=str('PINECONE_API_KEY' in os.environ))
+    st.session_state.app_started = True
 
 
 # ── Page Config ───────────────────────────────────────────────
@@ -190,7 +193,7 @@ with tab2:
     edited_df = st.data_editor(
         default_df,
         num_rows="dynamic",
-        width='stretch',
+        use_container_width=True,
         column_config={
             "ticker": st.column_config.TextColumn(
                 "Ticker / Company",
@@ -254,6 +257,7 @@ with tab2:
             final_df = pd.DataFrame(resolved_rows)
             final_df.to_csv(PORTFOLIO_PATH, index=False)
             st.session_state.active_portfolio = PORTFOLIO_PATH
+            log_info("app", "Portfolio saved", stocks=str(len(final_df)), path=PORTFOLIO_PATH)
             st.success("✅ Portfolio saved! Click 'Analyze Portfolio' to see results.")
 
         except Exception as e:
@@ -314,8 +318,8 @@ with tab2:
                 pass
 
         buy_col, sell_col = st.columns(2)
-        buy_btn  = buy_col.button("🟢 Buy",  type="primary", width='stretch')
-        sell_btn = sell_col.button("🔴 Sell", width='stretch')
+        buy_btn  = buy_col.button("🟢 Buy",  type="primary", use_container_width=True)
+        sell_btn = sell_col.button("🔴 Sell", use_container_width=True)
 
         if buy_btn or sell_btn:
             if not trade_stock:
@@ -392,7 +396,7 @@ with tab2:
                                              "Current", "Value",
                                              "Gain/Loss", "Allocation %"]
                         display_df = display_df.round(2)
-                        st.dataframe(display_df, width='stretch')
+                        st.dataframe(display_df, use_container_width=True)
 
                     with pie_col:
                         st.subheader("🥧 Allocation")
@@ -402,7 +406,7 @@ with tab2:
                         )
                         fig.update_traces(textposition='inside',
                                          textinfo='percent+label')
-                        st.plotly_chart(fig, width='stretch')
+                        st.plotly_chart(fig, use_container_width=True)
 
                     # ── Gain/Loss Bar Chart ───────────────────
                     st.subheader("📊 Gain/Loss by Stock")
@@ -418,7 +422,7 @@ with tab2:
                         yaxis_title="Gain/Loss ($)",
                         showlegend=False
                     )
-                    st.plotly_chart(fig2, width='stretch')
+                    st.plotly_chart(fig2, use_container_width=True)
 
                     # ── AI Analysis ───────────────────────────
                     st.subheader("🤖 AI Portfolio Analysis")
@@ -523,7 +527,7 @@ with tab3:
                                 ]
                             }
                         ))
-                        st.plotly_chart(fig, width='stretch')
+                        st.plotly_chart(fig, use_container_width=True)
                     except Exception:
                         pass
 
@@ -639,7 +643,7 @@ with tab4:
                                  "Target": "#ff7f0e"
                              })
                 fig.update_layout(yaxis_title="Amount ($)", xaxis_title="Years from Now")
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
                 # ── AI Advice ─────────────────────────────────
                 st.subheader("🤖 AI Financial Coach")

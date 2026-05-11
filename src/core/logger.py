@@ -1,15 +1,59 @@
 """
 Centralized logging utility for AI Finance Assistant.
+Logs to console and persists to Hugging Face Dataset.
 """
 
 import os
+import json
 from datetime import datetime
+
+HF_TOKEN = os.getenv("HF_TOKEN")
+HF_DATASET_REPO = "ChitrashreeShankaranandha/ai-finance-assistant-logs"
+
+
+def _save_to_hf(log_entry: dict):
+    """Append log entry to HF Dataset as daily JSONL file."""
+    if not HF_TOKEN:
+        return
+
+    try:
+        from huggingface_hub import HfApi
+        api = HfApi(token=HF_TOKEN)
+
+        date_str  = datetime.now().strftime("%Y-%m-%d")
+        filename  = f"logs/{date_str}.jsonl"
+        log_line  = json.dumps(log_entry) + "\n"
+
+        # Try to get existing file content
+        try:
+            existing_path = api.hf_hub_download(
+                repo_id=HF_DATASET_REPO,
+                filename=filename,
+                repo_type="dataset",
+                token=HF_TOKEN
+            )
+            with open(existing_path, "r") as f:
+                existing_content = f.read()
+        except Exception:
+            existing_content = ""
+
+        # Append and upload
+        new_content = existing_content + log_line
+        api.upload_file(
+            path_or_fileobj=new_content.encode(),
+            path_in_repo=filename,
+            repo_id=HF_DATASET_REPO,
+            repo_type="dataset",
+            token=HF_TOKEN
+        )
+    except Exception as e:
+        print(f"[WARNING] Could not save log to HF Dataset: {str(e)}")
 
 
 def log(level: str, category: str, message: str, **kwargs):
     """
     Centralized logger for the AI Finance Assistant.
-    
+
     Args:
         level:    INFO, USAGE, SECURITY, TRADE, ERROR
         category: Component name (workflow, security, trading, app)
@@ -17,12 +61,23 @@ def log(level: str, category: str, message: str, **kwargs):
         **kwargs: Additional key-value pairs to log
     """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Build extra fields string
-    extras = " | ".join([f"{k}={v}" for k, v in kwargs.items()])
+
+    # Build extra fields string for console
+    extras     = " | ".join([f"{k}={v}" for k, v in kwargs.items()])
     extras_str = f" | {extras}" if extras else ""
-    
+
+    # Always print to console
     print(f"[{timestamp}] [{level}] [{category}] {message}{extras_str}")
+
+    # Save to HF Dataset
+    log_entry = {
+        "timestamp": timestamp,
+        "level":     level,
+        "category":  category,
+        "message":   message,
+        **kwargs
+    }
+    _save_to_hf(log_entry)
 
 
 # ── Convenience functions ─────────────────────────────────────

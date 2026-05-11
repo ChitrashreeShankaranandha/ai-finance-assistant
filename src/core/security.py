@@ -196,7 +196,7 @@ def security_check(query: str, user_id: str = "default") -> tuple[bool, str]:
     if not rate_limiter.is_allowed(user_id):
         remaining = rate_limiter.requests_remaining(user_id)
         # print(f"[SECURITY] Rate limit exceeded | user={user_id} | remaining={remaining}")
-        log_security("security", "Rate limit exceeded", user=user_id, remaining=remaining)
+        log_security("security", "Rate limit exceeded", user=user_id, remaining=str(remaining))
         return False, f"Rate limit exceeded. Please wait before sending more requests."
 
     # 2. Sanitize input

@@ -227,8 +227,8 @@ def run_finance_assistant(query: str, user_id: str = "default") -> str:
         "error":    None,
     }
     result = graph.invoke(initial_state)
-    print(f"[USAGE] agent={result['agent']} | query_length={len(query)}")
-    log_usage("workflow", "Query processed", agent=result['agent'], query_length=len(query))
+    # print(f"[USAGE] agent={result['agent']} | query_length={len(query)}")
+    log_usage("workflow", "Query processed", agent=result['agent'], query_length=str(len(query)))
     response = result["response"]
     
     # ── Validate output ───────────────────────────────────────
