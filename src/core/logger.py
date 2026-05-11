@@ -7,12 +7,12 @@ import os
 import json
 from datetime import datetime
 
-HF_TOKEN = os.getenv("HF_TOKEN")
 HF_DATASET_REPO = "ChitrashreeShankaranandha/ai-finance-assistant-logs"
 
 
 def _save_to_hf(log_entry: dict):
     """Append log entry to HF Dataset as daily JSONL file."""
+    HF_TOKEN = os.getenv("HF_TOKEN")
     if not HF_TOKEN:
         return
 
@@ -24,7 +24,6 @@ def _save_to_hf(log_entry: dict):
         filename  = f"logs/{date_str}.jsonl"
         log_line  = json.dumps(log_entry) + "\n"
 
-        # Try to get existing file content
         try:
             existing_path = api.hf_hub_download(
                 repo_id=HF_DATASET_REPO,
@@ -37,7 +36,6 @@ def _save_to_hf(log_entry: dict):
         except Exception:
             existing_content = ""
 
-        # Append and upload
         new_content = existing_content + log_line
         api.upload_file(
             path_or_fileobj=new_content.encode(),
@@ -47,7 +45,7 @@ def _save_to_hf(log_entry: dict):
             token=HF_TOKEN
         )
     except Exception as e:
-        print(f"[WARNING] Could not save log to HF Dataset: {str(e)}")
+        print(f"[WARNING] Could not save log to HF Dataset: {type(e).__name__}: {str(e)}")
 
 
 def log(level: str, category: str, message: str, **kwargs):

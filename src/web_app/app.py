@@ -11,10 +11,10 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from src.core.logger import log_info
 
-load_dotenv()
+load_dotenv(find_dotenv())
 
 # print(f"[INFO] OPENAI_API_KEY loaded: {'OPENAI_API_KEY' in os.environ}")
 # print(f"[INFO] PINECONE_API_KEY loaded: {'PINECONE_API_KEY' in os.environ}")
