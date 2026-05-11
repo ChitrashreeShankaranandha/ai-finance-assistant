@@ -12,8 +12,15 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 from dotenv import load_dotenv
+from src.core.logger import log_info
 
 load_dotenv()
+
+# print(f"[INFO] OPENAI_API_KEY loaded: {'OPENAI_API_KEY' in os.environ}")
+# print(f"[INFO] PINECONE_API_KEY loaded: {'PINECONE_API_KEY' in os.environ}")
+log_info("app", "App started", openai_key=str('OPENAI_API_KEY' in os.environ), 
+         pinecone_key=str('PINECONE_API_KEY' in os.environ))
+
 
 # ── Page Config ───────────────────────────────────────────────
 st.set_page_config(
@@ -183,7 +190,7 @@ with tab2:
     edited_df = st.data_editor(
         default_df,
         num_rows="dynamic",
-        use_container_width=True,
+        width='stretch',
         column_config={
             "ticker": st.column_config.TextColumn(
                 "Ticker / Company",
@@ -307,8 +314,8 @@ with tab2:
                 pass
 
         buy_col, sell_col = st.columns(2)
-        buy_btn  = buy_col.button("🟢 Buy",  type="primary", use_container_width=True)
-        sell_btn = sell_col.button("🔴 Sell", use_container_width=True)
+        buy_btn  = buy_col.button("🟢 Buy",  type="primary", width='stretch')
+        sell_btn = sell_col.button("🔴 Sell", width='stretch')
 
         if buy_btn or sell_btn:
             if not trade_stock:
@@ -385,7 +392,7 @@ with tab2:
                                              "Current", "Value",
                                              "Gain/Loss", "Allocation %"]
                         display_df = display_df.round(2)
-                        st.dataframe(display_df, use_container_width=True)
+                        st.dataframe(display_df, width='stretch')
 
                     with pie_col:
                         st.subheader("🥧 Allocation")
@@ -395,7 +402,7 @@ with tab2:
                         )
                         fig.update_traces(textposition='inside',
                                          textinfo='percent+label')
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
 
                     # ── Gain/Loss Bar Chart ───────────────────
                     st.subheader("📊 Gain/Loss by Stock")
@@ -411,7 +418,7 @@ with tab2:
                         yaxis_title="Gain/Loss ($)",
                         showlegend=False
                     )
-                    st.plotly_chart(fig2, use_container_width=True)
+                    st.plotly_chart(fig2, width='stretch')
 
                     # ── AI Analysis ───────────────────────────
                     st.subheader("🤖 AI Portfolio Analysis")
@@ -516,7 +523,7 @@ with tab3:
                                 ]
                             }
                         ))
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
                     except Exception:
                         pass
 
@@ -632,7 +639,7 @@ with tab4:
                                  "Target": "#ff7f0e"
                              })
                 fig.update_layout(yaxis_title="Amount ($)", xaxis_title="Years from Now")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
                 # ── AI Advice ─────────────────────────────────
                 st.subheader("🤖 AI Financial Coach")

@@ -10,6 +10,7 @@ from src.agents.tax_education_agent import tax_education_agent
 from src.agents.portfolio_agent import analyze_portfolio
 from src.agents.portfolio_advisor_agent import portfolio_advisor_agent
 from src.core.security import security_check, sanitize_input, validate_output
+from src.core.logger import log_info, log_usage
 
 load_dotenv()
 
@@ -210,6 +211,11 @@ def run_finance_assistant(query: str, user_id: str = "default") -> str:
     
     # ── Sanitize input ────────────────────────────────────────
     query = sanitize_input(query)
+
+    # ── Logging ───────────────────────────────────────────────
+    # print(f"[INFO] Querying OpenAI | agent routing for: '{query[:50]}'")
+    log_info("workflow", "Querying OpenAI", query=query[:50])
+
     
     # ── Run the graph ─────────────────────────────────────────
     graph = build_finance_graph()
@@ -221,6 +227,8 @@ def run_finance_assistant(query: str, user_id: str = "default") -> str:
         "error":    None,
     }
     result = graph.invoke(initial_state)
+    print(f"[USAGE] agent={result['agent']} | query_length={len(query)}")
+    log_usage("workflow", "Query processed", agent=result['agent'], query_length=len(query))
     response = result["response"]
     
     # ── Validate output ───────────────────────────────────────

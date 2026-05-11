@@ -1,5 +1,7 @@
 import pandas as pd
 from src.utils.market_data import get_current_price
+from src.core.logger import log_trade
+
 
 DEFAULT_PORTFOLIO_PATH = "src/data/demo_portfolio.csv"
 
@@ -64,6 +66,10 @@ def simulated_buy(ticker: str, shares: float, portfolio_path: str = DEFAULT_PORT
     df.loc[cash_idx, "shares"]    = cash_balance - total_cost
     save_portfolio(df, portfolio_path)
 
+    # print(f"[TRADE] action=BUY | ticker={ticker} | shares={shares} | price={current_price:.2f} | total=${total_cost:.2f}")
+    log_trade("trading", "Buy executed", ticker=ticker, shares=shares, price=f"${current_price:.2f}", total=f"${total_cost:.2f}")
+
+
     return (
         f"Simulated buy completed: Bought {shares} shares of {ticker} "
         f"at approximately ${current_price:.2f} per share. "
@@ -105,6 +111,10 @@ def simulated_sell(ticker: str, shares: float, portfolio_path: str = DEFAULT_POR
     df.loc[cash_idx, "shares"] = cash_balance + sale_value
 
     save_portfolio(df, portfolio_path)
+
+    # print(f"[TRADE] action=SELL | ticker={ticker} | shares={shares} | price={current_price:.2f} | value=${sale_value:.2f}")
+    log_trade("trading", "Sell executed", ticker=ticker, shares=shares, price=f"${current_price:.2f}", value=f"${sale_value:.2f}")
+
 
     return (
         f"Simulated sell completed: Sold {shares} shares of {ticker} "

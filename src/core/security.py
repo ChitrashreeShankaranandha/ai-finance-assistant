@@ -6,7 +6,7 @@ Protects against prompt injection, jailbreaks, and misuse.
 import re
 import time
 from collections import defaultdict
-
+from src.core.logger import log_security
 
 # ── Prompt Injection Patterns ─────────────────────────────────
 INJECTION_PATTERNS = [
@@ -186,6 +186,7 @@ def validate_output(response: str) -> tuple[bool, str]:
 # ── Main Security Gate ────────────────────────────────────────
 rate_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
+
 def security_check(query: str, user_id: str = "default") -> tuple[bool, str]:
     """
     Full security pipeline. Run this before every agent call.
@@ -194,6 +195,8 @@ def security_check(query: str, user_id: str = "default") -> tuple[bool, str]:
     # 1. Rate limiting
     if not rate_limiter.is_allowed(user_id):
         remaining = rate_limiter.requests_remaining(user_id)
+        # print(f"[SECURITY] Rate limit exceeded | user={user_id} | remaining={remaining}")
+        log_security("security", "Rate limit exceeded", user=user_id, remaining=remaining)
         return False, f"Rate limit exceeded. Please wait before sending more requests."
 
     # 2. Sanitize input
@@ -202,16 +205,22 @@ def security_check(query: str, user_id: str = "default") -> tuple[bool, str]:
     # 3. Prompt injection check
     is_safe, reason = detect_prompt_injection(query)
     if not is_safe:
+        # print(f"[SECURITY] Blocked | reason=prompt_injection | query='{query[:30]}'")
+        log_security("security", "Blocked query", reason="prompt_injection", query=query[:30])
         return False, "⚠️ Your query contains patterns that look like prompt injection attempts. Please ask a genuine finance question."
 
     # 4. Harmful content check
     is_safe, reason = detect_harmful_content(query)
     if not is_safe:
+        # print(f"[SECURITY] Blocked | reason=harmful_content | query='{query[:30]}'")
+        log_security("security", "Blocked query", reason="harmful_content", query=query[:30])
         return False, "⚠️ I can't help with that request. I'm designed to provide financial education only."
 
     # 5. Off-topic check
     is_relevant, reason = detect_off_topic(query)
     if not is_relevant:
+        # print(f"[SECURITY] Blocked | reason=off_topic | query='{query[:30]}'")
+        log_security("security", "Blocked query", reason="off_topic", query=query[:30])
         return False, (
             "🤖 I'm specialized in financial education and can help you with:\n\n"
             "• 📈 Stock market analysis\n"
