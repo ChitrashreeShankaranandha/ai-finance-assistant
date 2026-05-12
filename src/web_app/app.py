@@ -281,12 +281,17 @@ with tab2:
                 for e in errors:
                     st.warning(f"⚠️ {e}")
 
-            # Add CASH row
-            resolved_rows.append({
-                "ticker":        "CASH",
-                "shares":        10000.0,
-                "avg_buy_price": 1.0
-            })
+            # Add CASH row only if user hasn't added one
+            has_cash = any(
+                str(row["ticker"]).strip().upper() == "CASH" 
+                for _, row in edited_df.iterrows()
+            )
+            if not has_cash:
+                resolved_rows.append({
+                    "ticker":        "CASH",
+                    "shares":        10000.0,
+                    "avg_buy_price": 1.0
+                })
 
             final_df = pd.DataFrame(resolved_rows)
             final_df.to_csv(PORTFOLIO_PATH, index=False)
