@@ -133,6 +133,25 @@ with tab1:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
+    # Handle pending question from quick buttons
+    if "pending_question" in st.session_state and st.session_state.pending_question:
+        prompt = st.session_state.pending_question
+        st.session_state.pending_question = None
+
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                try:
+                    from src.workflow.finance_workflow import run_finance_assistant
+                    response = run_finance_assistant(prompt)
+                except Exception as e:
+                    response = f"Sorry, I encountered an error: {str(e)}"
+            st.markdown(response)
+            st.session_state.messages.append({"role": "assistant", "content": response})
+
     # Chat input
     if prompt := st.chat_input("Ask a finance question..."):
         # Add user message
@@ -158,15 +177,15 @@ with tab1:
     col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("What is dollar cost averaging?"):
-            st.session_state.messages.append({"role": "user", "content": "What is dollar cost averaging?"})
+            st.session_state.pending_question = "What is dollar cost averaging?"
             st.rerun()
     with col2:
         if st.button("How do Roth IRAs work?"):
-            st.session_state.messages.append({"role": "user", "content": "How do Roth IRAs work?"})
+            st.session_state.pending_question = "How do Roth IRAs work?"
             st.rerun()
     with col3:
         if st.button("Explain diversification"):
-            st.session_state.messages.append({"role": "user", "content": "Explain diversification"})
+            st.session_state.pending_question = "Explain diversification"
             st.rerun()
 
 
