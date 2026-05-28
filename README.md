@@ -165,16 +165,16 @@ The Streamlit sidebar shows a real-time session security monitor:
 
 | # | Risk | Status |
 |---|------|--------|
-| LLM01 | Prompt Injection | ✅ Strong — two-stage detector (regex + LLM) |
-| LLM02 | Sensitive Information Disclosure | ✅ Partial — output validator catches system prompt leaks |
-| LLM03 | Supply Chain | ⚠️ Partial — uses vetted APIs, no dependency integrity checks |
+| LLM01 | Prompt Injection | two-stage detector (regex + LLM) |
+| LLM02 | Sensitive Information Disclosure | output validator catches system prompt leaks |
+| LLM03 | Supply Chain | uses vetted APIs, no dependency integrity checks |
 | LLM04 | Data and Model Poisoning | ❌ Not covered |
-| LLM05 | Improper Output Handling | ✅ Strong — output validator + response safety evaluator |
-| LLM06 | Excessive Agency | ✅ Strong — agents scoped to specific tasks, trading is simulated only |
-| LLM07 | System Prompt Leakage | ⚠️ Partial — leak patterns detected in output |
-| LLM08 | Model Misbehavior | ✅ Strong — rubric-based response scoring before delivery |
+| LLM05 | Improper Output Handling | output validator + response safety evaluator |
+| LLM06 | Excessive Agency | agents scoped to specific tasks, trading is simulated only |
+| LLM07 | System Prompt Leakage | leak patterns detected in output |
+| LLM08 | Model Misbehavior | rubric-based response scoring before delivery |
 | LLM09 | Misinformation | ❌ Not covered — disclaimer only |
-| LLM10 | Unbounded Consumption | ✅ Strong — rate limiter with configurable per-user limits |
+| LLM10 | Unbounded Consumption | rate limiter with configurable per-user limits |
 
 ---
 
