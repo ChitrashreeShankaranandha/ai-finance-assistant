@@ -20,21 +20,21 @@ The AI Finance Assistant is a production-ready multi-agent AI system designed to
 
 ## 🏗️ Architecture
 
-User Query
-↓
-[LLM Security Layer]  ← prompt injection detection, rate limiting
-↓
-[LangGraph Router]    ← intelligently routes to the right agent
-↓
-| Agent | Data Source |
-|-------|------------|
-| 📊 Portfolio Agent | Portfolio CSV + yFinance |
-| 💹 Trading Agent | yFinance + CSV |
-| 🎯 Portfolio Advisor | GPT + RAG |
-| 📈 Market Analysis Agent | yFinance + GPT |
-| 🎯 Goal Planning Agent | Math + GPT |
-| 📰 News Synthesizer Agent | yFinance + RAG + GPT |
-| 💰 Tax Education Agent | Pinecone RAG + GPT |
+```mermaid
+flowchart TD
+    A[User Query] --> B[Regex Security Layer\nfast pattern matching · rate limiting]
+    B --> C[LLM Security Layer\nsemantic injection · multi-turn auditing]
+    C --> D[LangGraph Router\nroutes to the right agent]
+    D --> E[Portfolio Agent]
+    D --> F[Trading Agent]
+    D --> G[Portfolio Advisor]
+    D --> H[Market Analysis Agent]
+    D --> I[Goal Planning Agent]
+    D --> J[News Synthesizer Agent]
+    D --> K[Tax Education Agent]
+    E & F & G & H & I & J & K --> L[Response Safety Evaluator\nrubric-based output scoring]
+    L --> M[User]
+```
 
 ---
 
@@ -61,7 +61,7 @@ User Query
 | Vector Database | Pinecone |
 | Market Data | yFinance |
 | Web Interface | Streamlit |
-| LLM Security | Custom security layer |
+| LLM Security | Two-layer custom security pipeline |
 | MCP Server | Model Context Protocol |
 | Testing | pytest |
 
@@ -82,7 +82,9 @@ ai-finance-assistant/
 │   │   └── tax_education_agent.py
 │   ├── core/
 │   │   ├── openai_client.py
-│   │   └── security.py
+│   │   ├── logger.py
+│   │   ├── security.py
+│   │   └── llm_security_layer.py
 │   ├── data/
 │   │   ├── demo_portfolio.csv
 │   │   ├── demo_portfolio_backup.csv
@@ -114,13 +116,65 @@ ai-finance-assistant/
 
 ## 🔐 LLM Security Layer
 
-The system includes a comprehensive security layer that protects against:
+The system features a **two-layer security pipeline** that protects against both known and novel attacks:
 
+### Layer 1 — Regex Security (Fast Gate)
 - **Prompt Injection** — detects and blocks attempts to override system instructions
 - **Harmful Content** — blocks requests for illegal financial advice (market manipulation, insider trading)
 - **Off-topic Queries** — redirects non-finance questions with helpful guidance
 - **Output Validation** — ensures responses don't contain direct investment advice or guaranteed returns
 - **Rate Limiting** — prevents abuse with configurable request limits per user
+
+### Layer 2 — LLM Security (Deep Semantic Analysis)
+
+Four specialized security agents built on LLM reasoning:
+
+- **Prompt Injection Detector** — Two-stage detection: regex pre-filter + LLM semantic analysis for novel, obfuscated, or indirect injection attempts
+- **Jailbreak Pattern Analyzer** — Detects multi-turn escalation: analyzes conversation history for gradual topic shift toward harmful goals across turns
+- **Response Safety Evaluator** — LLM-as-judge that scores every response on Safety, Accuracy, Compliance, and Relevance before delivery to the user
+- **Multi-turn Conversation Auditor** — Full session audit for semantic drift, context poisoning, cumulative boundary erosion, and identity manipulation
+
+### Security Flow
+
+```mermaid
+flowchart TD
+    A[User Input] --> B{Layer 1\nRegex Gate}
+    B -->|blocked| X1[🚫 Blocked · no LLM cost]
+    B -->|clean| C{Prompt Injection\nDetector}
+    C -->|blocked| X2[🚫 Injection Detected]
+    C -->|clean| D{Jailbreak Pattern\nAnalyzer\n≥2 turns}
+    D -->|blocked| X3[🚫 Escalation Detected]
+    D -->|clean| E{Conversation\nAuditor\n≥3 turns}
+    E -->|blocked| X4[🚫 Manipulation Detected]
+    E -->|clean| F[LangGraph Agents]
+    F --> G{Response Safety\nEvaluator}
+    G -->|unsafe| X5[🚫 Response Blocked]
+    G -->|safe| H[✅ User Receives Response]
+```
+
+### Live Security Dashboard
+
+The Streamlit sidebar shows a real-time session security monitor:
+
+- Query count and blocked count per session
+- Per-interaction risk score and status (clean / monitoring / elevated / critical)
+- Agent routing visibility
+- Session reset to clear conversation context
+
+### OWASP LLM Top 10 Coverage
+
+| # | Risk | Status |
+|---|------|--------|
+| LLM01 | Prompt Injection | ✅ Strong — two-stage detector (regex + LLM) |
+| LLM02 | Sensitive Information Disclosure | ✅ Partial — output validator catches system prompt leaks |
+| LLM03 | Supply Chain | ⚠️ Partial — uses vetted APIs, no dependency integrity checks |
+| LLM04 | Data and Model Poisoning | ❌ Not covered |
+| LLM05 | Improper Output Handling | ✅ Strong — output validator + response safety evaluator |
+| LLM06 | Excessive Agency | ✅ Strong — agents scoped to specific tasks, trading is simulated only |
+| LLM07 | System Prompt Leakage | ⚠️ Partial — leak patterns detected in output |
+| LLM08 | Model Misbehavior | ✅ Strong — rubric-based response scoring before delivery |
+| LLM09 | Misinformation | ❌ Not covered — disclaimer only |
+| LLM10 | Unbounded Consumption | ✅ Strong — rate limiter with configurable per-user limits |
 
 ---
 
@@ -142,7 +196,7 @@ The system includes a comprehensive security layer that protects against:
 
 | Tab | Features |
 |-----|---------|
-| 💬 Finance Chat | Conversational AI with automatic agent routing |
+| 💬 Finance Chat | Conversational AI with automatic agent routing and inline security indicators |
 | 📊 Portfolio | Manual editor, live analysis, pie chart, gain/loss chart, trading panel |
 | 📈 Market Analysis | Company name resolution, live prices, 52W gauge chart |
 | 🎯 Goal Planner | Interactive calculator, projection chart, risk profiles |
@@ -223,10 +277,12 @@ Add to `claude_desktop_config.json`:
 
 ## 🧪 Testing
 
-40 tests across 3 test files:
+42 tests across 3 test files:
+```
 ├── test_agents.py    → 12 tests (market, goal, tax, news agents)
 ├── test_security.py  → 24 tests (injection, harmful content, rate limiting)
-└── test_workflow.py  →  4 tests (LangGraph routing)
+└── test_workflow.py  →  6 tests (LangGraph routing)
+```
 
 ---
 
@@ -245,6 +301,8 @@ This system is for **educational purposes only** and does not constitute financi
 
 ## 🔮 Future Directions
 
+- **Conversation Memory** — persistent user preferences and session history across logins
+- **Security Threshold Tuning** — labeled test dataset for precision/recall optimization of multi-turn auditor
 - **User Authentication** — private portfolios per user with Streamlit Authenticator
 - **Cloud Database** — PostgreSQL/Supabase for persistent multi-user portfolios
 - **Voice Interface** — natural speech interaction

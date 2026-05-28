@@ -92,18 +92,59 @@ with st.sidebar:
     st.title("Navigation")
     st.markdown("---")
     st.markdown("### 🔒 Security Status")
-    st.success("✅ Security Layer Active")
+    st.success("✅ Regex Security Layer Active")
+    st.success("✅ LLM Security Layer Active")
     st.info("✅ RAG Knowledge Base Connected")
     st.info("✅ LangGraph Router Online")
+ 
+    # ── Live Security Dashboard ───────────────────────────────
+    st.markdown("---")
+    st.markdown("### 🛡️ Session Security Monitor")
+ 
+    if "security_events" not in st.session_state:
+        st.session_state.security_events = []
+ 
+    events = st.session_state.security_events
+    if not events:
+        st.caption("No security events yet.")
+    else:
+        blocked = [e for e in events if e.get("blocked")]
+        flagged = [e for e in events if e.get("risk_summary", {}).get("overall_risk", 0) > 0.3]
+ 
+        col_a, col_b = st.columns(2)
+        col_a.metric("Queries",   len(events))
+        col_b.metric("🚨 Blocked", len(blocked))
+ 
+        if flagged:
+            st.warning(f"⚠️ {len(flagged)} flagged interaction(s) this session")
+ 
+        # Show last 3 events
+        st.markdown("**Recent events:**")
+        for event in events[-3:][::-1]:
+            risk = event.get("risk_summary", {}).get("overall_risk", 0)
+            status = event.get("risk_summary", {}).get("status", "clean")
+            color = {"clean": "🟢", "monitoring": "🟡",
+                     "elevated": "🟠", "critical": "🔴"}.get(status, "⚪")
+            agent = event.get("risk_summary", {}).get("agent_used", "—")
+            st.caption(f"{color} {status.upper()} | agent: {agent} | risk: {risk:.2f}")
+    
+    # ── Session Reset Button ──────────────────────────────────
+    if st.button("🔄 Reset Session", use_container_width=True):
+        st.session_state.messages = [
+            {"role": "assistant", "content": "👋 Hello! I'm your AI Finance Assistant. Ask me anything about investing, stocks, taxes, retirement planning, or financial news!"}
+        ]
+        st.session_state.security_events = []
+        st.rerun()
+
     st.markdown("---")
     st.markdown("### ⚠️ Disclaimer")
-    st.markdown("""
-    <div class="disclaimer">
-    This tool is for <b>educational purposes only</b> 
-    and does not constitute financial advice. 
-    Always consult a qualified financial advisor.
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div class="disclaimer">This tool is for <b>educational purposes only</b> '
+        'and does not constitute financial advice. '
+        'Always consult a qualified financial advisor.</div>',
+        unsafe_allow_html=True
+    )
+
 
 # ── Tabs ──────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -128,6 +169,9 @@ with tab1:
             {"role": "assistant", "content": "👋 Hello! I'm your AI Finance Assistant. Ask me anything about investing, stocks, taxes, retirement planning, or financial news!"}
         ]
 
+    if "security_events" not in st.session_state:
+        st.session_state.security_events = []
+
     # Display chat history
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
@@ -146,7 +190,12 @@ with tab1:
             with st.spinner("Thinking..."):
                 try:
                     from src.workflow.finance_workflow import run_finance_assistant
-                    response = run_finance_assistant(prompt)
+                    response, security_meta = run_finance_assistant(
+                        prompt,
+                        conversation_history=st.session_state.messages
+                    )
+                    # Store security event for sidebar dashboard
+                    st.session_state.security_events.append(security_meta)
                 except Exception as e:
                     response = f"Sorry, I encountered an error: {str(e)}"
             st.markdown(response)
@@ -164,11 +213,32 @@ with tab1:
             with st.spinner("Thinking..."):
                 try:
                     from src.workflow.finance_workflow import run_finance_assistant
-                    response = run_finance_assistant(prompt)
+                    response, security_meta = run_finance_assistant(
+                        prompt,
+                        conversation_history=st.session_state.messages
+                    )
+                    # Store security event for sidebar dashboard
+                    st.session_state.security_events.append(security_meta)
                 except Exception as e:
                     response = f"Sorry, I encountered an error: {str(e)}"
 
             st.markdown(response)
+            # Show security score inline (subtle, not intrusive)
+            score  = security_meta.get("risk_summary", {}).get("overall_risk", 0)
+            status = security_meta.get("risk_summary", {}).get("status", "clean")
+            agent  = security_meta.get("risk_summary", {}).get("agent_used", "")
+            output_score = security_meta.get("risk_summary", {}).get("output_score")
+            
+            indicator = {"clean": "🟢", "monitoring": "🟡",
+                        "elevated": "🟠", "critical": "🔴"}.get(status, "⚪")
+            
+            details = f"{indicator} Security: {status}"
+            if agent:
+                details += f" | Agent: {agent}"
+            if output_score:
+                details += f" | Safety score: {output_score:.1f}/10"
+            
+            st.caption(details)
             st.session_state.messages.append({"role": "assistant", "content": response})
 
     # Quick question buttons

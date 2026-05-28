@@ -10,7 +10,13 @@ from src.agents.tax_education_agent import tax_education_agent
 from src.agents.portfolio_agent import analyze_portfolio
 from src.agents.portfolio_advisor_agent import portfolio_advisor_agent
 from src.core.security import security_check, sanitize_input, validate_output
-from src.core.logger import log_info, log_usage
+from src.core.llm_security_layer import (
+    run_input_security,
+    run_output_security,
+    get_session_risk_summary,
+    ConversationTurn,
+)
+from src.core.logger import log_info, log_usage, log_security
 
 load_dotenv()
 
@@ -201,23 +207,69 @@ def build_finance_graph():
 
 
 # ── Main entry point ──────────────────────────────────────────
-def run_finance_assistant(query: str, user_id: str = "default") -> str:
-    """Single entry point with full security layer."""
-    
-    # ── Security Gate ─────────────────────────────────────────
+def run_finance_assistant(
+    query: str,
+    user_id: str = "default",
+    conversation_history: list[dict] | None = None
+) -> tuple[str, dict]:
+    """
+    Single entry point with full two-layer security pipeline.
+
+    Layer 1 — Existing regex security (security.py): fast, lightweight
+    Layer 2 — LLM security (llm_security_layer.py): deep, semantic
+
+    Args:
+        query:                The user's message
+        user_id:              For rate limiting
+        conversation_history: List of {"role": str, "content": str} dicts
+                              from Streamlit's st.session_state.messages
+
+    Returns:
+        (response_text, security_metadata)
+        security_metadata is passed to the UI for the security dashboard
+    """
+
+    # ── Convert history to ConversationTurn objects ───────────
+    history: list[ConversationTurn] = [
+        ConversationTurn(role=m["role"], content=m["content"])
+        for m in (conversation_history or [])
+        if m.get("role") in ("user", "assistant")
+    ]
+
+    # ══════════════════════════════════════════════════════════
+    # LAYER 1: Existing regex security gate (fast, no LLM cost)
+    # ══════════════════════════════════════════════════════════
     is_allowed, message = security_check(query, user_id)
     if not is_allowed:
-        return message
-    
-    # ── Sanitize input ────────────────────────────────────────
+        return message, {"layer": "regex", "blocked": True, "reason": message}
+
+    # ══════════════════════════════════════════════════════════
+    # LAYER 2A: LLM input security (injection + multi-turn)
+    # ══════════════════════════════════════════════════════════
+    is_allowed, llm_message, input_results = run_input_security(query, history)
+    risk_summary = get_session_risk_summary(input_results)
+
+    if not is_allowed:
+        log_security(
+            "workflow", "LLM security layer blocked query",
+            risk=str(risk_summary["overall_risk"]),
+            status=risk_summary["status"]
+        )
+        return llm_message, {
+            "layer":       "llm_input",
+            "blocked":     True,
+            "reason":      llm_message,
+            "risk_summary": risk_summary
+        }
+
+    # ── Sanitize & log ────────────────────────────────────────
     query = sanitize_input(query)
+    log_info("workflow", "Query approved by security", query=query[:50],
+             risk=str(risk_summary["overall_risk"]))
 
-    # ── Logging ───────────────────────────────────────────────
-    # print(f"[INFO] Querying OpenAI | agent routing for: '{query[:50]}'")
-    log_info("workflow", "Querying OpenAI", query=query[:50])
-
-    
-    # ── Run the graph ─────────────────────────────────────────
+    # ══════════════════════════════════════════════════════════
+    # LANGGRAPH: Run the agent pipeline
+    # ══════════════════════════════════════════════════════════
     graph = build_finance_graph()
     initial_state: FinanceState = {
         "query":    query,
@@ -226,15 +278,33 @@ def run_finance_assistant(query: str, user_id: str = "default") -> str:
         "ticker":   None,
         "error":    None,
     }
-    result = graph.invoke(initial_state)
-    # print(f"[USAGE] agent={result['agent']} | query_length={len(query)}")
-    log_usage("workflow", "Query processed", agent=result['agent'], query_length=str(len(query)))
+    result   = graph.invoke(initial_state)
     response = result["response"]
-    
-    # ── Validate output ───────────────────────────────────────
-    is_safe, reason = validate_output(response)
-    if not is_safe:
-        return "I wasn't able to generate a safe response. Please try rephrasing your question."
-    
-    return response
 
+    log_usage("workflow", "Query processed",
+              agent=result["agent"], query_length=str(len(query)))
+
+    # ══════════════════════════════════════════════════════════
+    # LAYER 2B: LLM output security (response safety evaluation)
+    # ══════════════════════════════════════════════════════════
+    is_safe, final_response, output_result = run_output_security(query, response)
+
+    # Merge output result into risk summary
+    all_results = input_results + [output_result]
+    final_risk_summary = get_session_risk_summary(all_results)
+    final_risk_summary["agent_used"]    = result["agent"]
+    final_risk_summary["output_score"]  = output_result.details.get("overall_score")
+    final_risk_summary["output_verdict"]= output_result.details.get("overall_verdict")
+
+    # ── Legacy output validator (regex) ──────────────────────
+    if is_safe:
+        regex_safe, regex_reason = validate_output(final_response)
+        if not regex_safe:
+            log_security("workflow", "Regex output validator blocked", reason=regex_reason)
+            final_response = (
+                "I wasn't able to generate a safe response. "
+                "Please try rephrasing your question."
+            )
+            final_risk_summary["blocked"] = True
+
+    return final_response, final_risk_summary
